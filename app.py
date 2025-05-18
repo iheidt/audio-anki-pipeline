@@ -83,11 +83,16 @@ def create_csv(entries, audio_folder, csv_path):
 @app.route("/generate", methods=["GET"])
 def generate():
     session_id = request.args.get("session_id")
+    if not session_id:
+        return {"error": "Missing session_id"}, 400
+
     folder = os.path.join(BASE_FOLDER, session_id)
+    os.makedirs(folder, exist_ok=True)  # ✅ Ensure folder exists
+    audio_folder = os.path.join(folder, "audio")
+    os.makedirs(audio_folder, exist_ok=True)  # ✅ Ensure audio folder exists
+
     pdf_path = os.path.join(folder, "vocab.pdf")
     audio_path = os.path.join(folder, "vocab.mp3")
-    audio_folder = os.path.join(folder, "audio")  # 🔧 <- FIX: Ensure this is created
-    os.makedirs(audio_folder, exist_ok=True)      # 🔧 <- ADD THIS LINE
     zip_path = os.path.join(folder, "anki_output.zip")
     csv_path = os.path.join(folder, "anki_cards.csv")
 

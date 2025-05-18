@@ -8,6 +8,8 @@ app = Flask(__name__)
 BASE_FOLDER = "sessions"
 os.makedirs(BASE_FOLDER, exist_ok=True)
 
+# This is a test comment
+
 @app.route("/status", methods=["GET"])
 def status():
     return jsonify({"status": "running"})

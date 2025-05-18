@@ -23,11 +23,19 @@ def get_session_folder():
 @app.route("/upload/pdf", methods=["POST"])
 def upload_pdf():
     session_id = request.args.get("session_id")
+    if not session_id:
+        return {"error": "Missing session_id"}, 400
+
     folder = os.path.join(BASE_FOLDER, session_id)
-    pdf_path = os.path.join(folder, "vocab.pdf")
-    f = request.files['file']
-    f.save(pdf_path)
-    return {"message": "PDF uploaded", "session_id": session_id}, 200
+    os.makedirs(folder, exist_ok=True)  # ✅ Ensure folder exists
+
+    try:
+        pdf_path = os.path.join(folder, "vocab.pdf")
+        f = request.files['file']
+        f.save(pdf_path)
+        return {"message": "PDF uploaded", "session_id": session_id}, 200
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 @app.route("/upload/audio", methods=["POST"])
 def upload_audio():

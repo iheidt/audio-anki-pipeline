@@ -86,7 +86,8 @@ def generate():
     folder = os.path.join(BASE_FOLDER, session_id)
     pdf_path = os.path.join(folder, "vocab.pdf")
     audio_path = os.path.join(folder, "vocab.mp3")
-    audio_folder = os.path.join(folder, "audio")
+    audio_folder = os.path.join(folder, "audio")  # 🔧 <- FIX: Ensure this is created
+    os.makedirs(audio_folder, exist_ok=True)      # 🔧 <- ADD THIS LINE
     zip_path = os.path.join(folder, "anki_output.zip")
     csv_path = os.path.join(folder, "anki_cards.csv")
 

@@ -45,22 +45,23 @@ def upload_audio():
     return {"message": "Audio uploaded"}, 200
 
 def parse_pdf_words(pdf_path):
+    import re
     doc = fitz.open(pdf_path)
     text = "\n".join(page.get_text() for page in doc)
     lines = text.split("\n")
     entries = []
+
     for line in lines:
-        parts = line.strip().split()
-        if len(parts) >= 3 and parts[0][0].isdigit():
-            try:
-                number = int(parts[0].strip("､"))
-                kanji = parts[1]
-                kana = parts[2]
-                meaning = " ".join(parts[3:])
-                entries.append((number, kanji, kana, meaning))
-            except:
-                continue
+        match = re.match(r"^(\d+)[､,]\s*(\S+?)([ぁ-んァ-ンー]+)(.+)", line)
+        if match:
+            number = int(match.group(1))
+            kanji = match.group(2)
+            kana = match.group(3)
+            meaning = match.group(4).strip()
+            entries.append((number, kanji, kana, meaning))
+
     return entries
+
 
 def split_audio(audio_path, audio_folder, expected_count):
     audio = AudioSegment.from_mp3(audio_path)

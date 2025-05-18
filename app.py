@@ -8,8 +8,6 @@ app = Flask(__name__)
 BASE_FOLDER = "sessions"
 os.makedirs(BASE_FOLDER, exist_ok=True)
 
-# This is a test comment
-
 @app.route("/status", methods=["GET"])
 def status():
     return jsonify({"status": "running"})
@@ -27,7 +25,7 @@ def upload_pdf():
         return {"error": "Missing session_id"}, 400
 
     folder = os.path.join(BASE_FOLDER, session_id)
-    os.makedirs(folder, exist_ok=True)  # ✅ Ensure folder exists
+    os.makedirs(folder, exist_ok=True)
 
     try:
         pdf_path = os.path.join(folder, "vocab.pdf")
@@ -67,9 +65,9 @@ def parse_pdf_words(pdf_path):
 def split_audio(audio_path, audio_folder, expected_count):
     audio = AudioSegment.from_mp3(audio_path)
     chunks = silence.split_on_silence(audio, min_silence_len=300, silence_thresh=-40)
-    chunks = chunks[:expected_count]  # match parsed entries count
+    chunks = chunks[:expected_count]
     for i, chunk in enumerate(chunks):
-        chunk = chunk.fade_in(10).fade_out(10)  # smooth edges
+        chunk = chunk.fade_in(10).fade_out(10)
         chunk.export(os.path.join(audio_folder, f"{i+1:03}.mp3"), format="mp3")
 
 def create_csv(entries, audio_folder, csv_path):
@@ -82,33 +80,50 @@ def create_csv(entries, audio_folder, csv_path):
 
 @app.route("/generate", methods=["GET"])
 def generate():
+    import sys
     session_id = request.args.get("session_id")
     if not session_id:
         return {"error": "Missing session_id"}, 400
 
     folder = os.path.join(BASE_FOLDER, session_id)
-    os.makedirs(folder, exist_ok=True)  # ✅ Ensure folder exists
-    audio_folder = os.path.join(folder, "audio")
-    os.makedirs(audio_folder, exist_ok=True)  # ✅ Ensure audio folder exists
-
+    os.makedirs(folder, exist_ok=True)
     pdf_path = os.path.join(folder, "vocab.pdf")
     audio_path = os.path.join(folder, "vocab.mp3")
+    audio_folder = os.path.join(folder, "audio")
+    os.makedirs(audio_folder, exist_ok=True)
     zip_path = os.path.join(folder, "anki_output.zip")
     csv_path = os.path.join(folder, "anki_cards.csv")
 
-    if not os.path.exists(pdf_path) or not os.path.exists(audio_path):
-        return {"error": "Missing PDF or audio"}, 400
+    if not os.path.exists(pdf_path):
+        print(f"[ERROR] Missing PDF at: {pdf_path}", file=sys.stderr)
+        return {"error": "Missing PDF"}, 400
 
-    entries = parse_pdf_words(pdf_path)
-    split_audio(audio_path, audio_folder, len(entries))
-    create_csv(entries, audio_folder, csv_path)
+    if not os.path.exists(audio_path):
+        print(f"[ERROR] Missing audio at: {audio_path}", file=sys.stderr)
+        return {"error": "Missing audio"}, 400
 
-    with zipfile.ZipFile(zip_path, 'w') as z:
-        z.write(csv_path, arcname=os.path.basename(csv_path))
-        for file in os.listdir(audio_folder):
-            z.write(os.path.join(audio_folder, file), arcname=os.path.join("audio", file))
+    try:
+        print("[INFO] Parsing PDF...", file=sys.stderr)
+        entries = parse_pdf_words(pdf_path)
 
-    return send_file(zip_path, mimetype='application/zip', as_attachment=True)
+        print("[INFO] Splitting audio...", file=sys.stderr)
+        split_audio(audio_path, audio_folder, len(entries))
+
+        print("[INFO] Creating CSV...", file=sys.stderr)
+        create_csv(entries, audio_folder, csv_path)
+
+        print("[INFO] Creating ZIP...", file=sys.stderr)
+        with zipfile.ZipFile(zip_path, 'w') as z:
+            z.write(csv_path, arcname=os.path.basename(csv_path))
+            for file in os.listdir(audio_folder):
+                z.write(os.path.join(audio_folder, file), arcname=os.path.join("audio", file))
+
+        print("[INFO] Done! Sending ZIP.", file=sys.stderr)
+        return send_file(zip_path, mimetype='application/zip', as_attachment=True)
+
+    except Exception as e:
+        print(f"[ERROR] Exception during generation: {e}", file=sys.stderr)
+        return {"error": str(e)}, 500
 
 import os
 
